@@ -1,0 +1,862 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>豐原區人口結構</title>
+<style>
+:root {
+  --paper: #E9EEF1;
+  --panel: #FFFFFF;
+  --ink: #14232E;
+  --ink2: #51616D;
+  --line: #CBD4DA;
+  --male: #2F7BA5;
+  --female: #B04A78;
+  --old: #1E3A5F;
+  --focus: #1B6FD1;
+  --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "Heiti TC", "Source Han Sans TC", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+}
+a { color: var(--old); text-underline-offset: 3px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* ---------- 頂部:標題 + 篩選列 ---------- */
+.top {
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  z-index: 20;
+}
+@media (min-width: 900px) { .top { position: sticky; top: 0; } }
+.top-inner { max-width: 1280px; margin: 0 auto; padding: 14px 16px 12px; }
+.titlerow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: .02em; }
+.sub { margin: 0; color: var(--ink2); font-size: 14px; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; margin-top: 10px; }
+.f { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.f > label, .f > .lbl { font-size: 13px; font-weight: 600; color: var(--ink2); }
+select, .vsel summary, button {
+  font: inherit;
+  color: var(--ink);
+}
+select, .vsel summary {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+.vsel { position: relative; }
+.vsel summary { display: flex; align-items: center; min-width: 168px; list-style: none; }
+.vsel summary::-webkit-details-marker { display: none; }
+.vsel summary::after { content: ""; margin-left: auto; width: 7px; height: 7px; border-right: 2px solid var(--ink2); border-bottom: 2px solid var(--ink2); transform: translateY(-2px) rotate(45deg); }
+.vpanel {
+  position: absolute; z-index: 30; top: 44px; left: 0;
+  width: min(440px, calc(100vw - 32px));
+  background: #fff; border: 1px solid var(--line); border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(20, 35, 46, .16);
+  padding: 10px;
+}
+.vtools { display: flex; gap: 8px; margin-bottom: 8px; }
+.vtools button { height: 30px; padding: 0 12px; border: 1px solid var(--line); border-radius: 4px; background: #fff; cursor: pointer; }
+.vtools button:hover { background: var(--paper); }
+.vlist { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px 8px; max-height: 260px; overflow: auto; }
+.vlist label { display: flex; gap: 6px; align-items: center; padding: 4px 2px; font-size: 14px; cursor: pointer; }
+.slider { width: 220px; max-width: 100%; }
+.slider input { width: 100%; height: 38px; margin: 0; accent-color: var(--old); }
+output { font-weight: 700; color: var(--ink); }
+
+/* ---------- 摘要 ---------- */
+main { max-width: 1280px; margin: 0 auto; padding: 18px 16px 8px; }
+.notice { margin: 0 0 14px; padding: 10px 14px; background: #FFF4D6; border: 1px solid #E0C36A; border-radius: 4px; }
+.summary { margin: 0 0 6px; max-width: 70ch; font-size: 16px; }
+.summary strong { font-weight: 800; }
+.split { display: flex; height: 6px; max-width: 420px; margin: 8px 0 20px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.split span { display: block; height: 100%; transition: width .6s cubic-bezier(.4, 0, .2, 1); }
+.split .m { background: var(--male); }
+.split .w { background: var(--female); }
+.split-cap { display: flex; justify-content: space-between; max-width: 420px; margin: -14px 0 20px; font-size: 12.5px; color: var(--ink2); }
+
+/* ---------- 圖表面板 ---------- */
+.grid { display: flex; flex-direction: column; gap: 16px; }
+.col { display: contents; }
+.p1 { order: 1; } .p2 { order: 2; } .p3 { order: 3; } .p4 { order: 4; }
+@media (min-width: 900px) {
+  .p1 .chart { height: 520px; }
+  .grid { display: grid; grid-template-columns: 5fr 7fr; align-items: start; }
+  .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+}
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.panel-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 12px 14px 0; }
+.panel-head h2 { margin: 0; font-size: 17px; font-weight: 800; }
+.scope { color: var(--ink2); font-size: 13px; }
+.toggle { margin-left: auto; display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.toggle button { height: 32px; padding: 0 12px; border: 0; background: #fff; cursor: pointer; font-size: 13.5px; }
+.toggle button + button { border-left: 1px solid var(--line); }
+.toggle button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.chart-wrap { padding: 4px 8px 0; }
+.chart { width: 100%; height: 440px; }
+.empty { margin: 0; padding: 56px 16px; text-align: center; color: var(--ink2); }
+.empty[hidden], .notice[hidden], .chart[hidden] { display: none; }
+.foot { margin: 0; padding: 4px 14px 14px; color: var(--ink2); font-size: 13px; max-width: 100ch; }
+
+/* ---------- 頁尾 ---------- */
+footer { max-width: 1280px; margin: 0 auto; padding: 24px 16px 40px; color: var(--ink2); font-size: 13.5px; }
+footer dl { display: grid; grid-template-columns: 1fr; gap: 10px 20px; margin: 0; max-width: 100ch; }
+@media (min-width: 700px) { footer dl { grid-template-columns: 7em 1fr; } }
+footer dt { font-weight: 700; color: var(--ink); }
+footer dd { margin: 0; }
+
+@media (max-width: 899px) {
+  .chart { height: 380px; }
+  .vlist { grid-template-columns: repeat(2, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { .split span { transition: none; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="titlerow">
+      <h1>豐原區人口結構</h1>
+      <p class="sub">各里年齡結構、扶養負擔與性別差異(115 年 9 月)</p>
+    </div>
+    <form class="filters" id="filters" onsubmit="return false">
+      <div class="f">
+        <span class="lbl" id="lbl-village">里</span>
+        <details class="vsel" id="vsel">
+          <summary id="vsum" aria-labelledby="lbl-village vsum">全部里</summary>
+          <div class="vpanel">
+            <div class="vtools">
+              <button type="button" id="v-all">全選</button>
+              <button type="button" id="v-none">清除</button>
+            </div>
+            <div class="vlist" id="vlist"></div>
+          </div>
+        </details>
+      </div>
+      <div class="f slider">
+        <label for="minpop">最低人口數:<output id="minpop-out" for="minpop">0</output> 人</label>
+        <input type="range" id="minpop" min="0" max="16200" step="100" value="0">
+      </div>
+      <div class="f">
+        <label for="metric">指標</label>
+        <select id="metric">
+          <option value="aging_index">老化指數</option>
+          <option value="dependency_ratio">扶養比</option>
+          <option value="sex_ratio">性別比</option>
+        </select>
+      </div>
+      <div class="f">
+        <label for="sort">排序</label>
+        <select id="sort">
+          <option value="desc">由高到低</option>
+          <option value="asc">由低到高</option>
+          <option value="name">依里名</option>
+        </select>
+      </div>
+    </form>
+  </div>
+</header>
+
+<main>
+  <p class="notice" id="notice" role="alert" hidden></p>
+  <p class="summary" id="summary" aria-live="polite"></p>
+  <div class="split" id="split" aria-hidden="true"><span class="m"></span><span class="w"></span></div>
+  <div class="split-cap" aria-hidden="true"><span id="cap-m"></span><span id="cap-w"></span></div>
+
+  <div class="grid">
+   <div class="col">
+    <section class="panel p1" id="card1">
+      <div class="panel-head">
+        <h2>人口金字塔</h2><span class="scope" id="scope1"></span>
+        <div class="toggle" role="group" aria-label="切換圖型" data-chart="c1">
+          <button type="button" data-view="pyramid" aria-pressed="true">金字塔</button>
+          <button type="button" data-view="line" aria-pressed="false">性別比</button>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart" id="chart1" role="img" aria-label="各年齡組男女人數的人口金字塔"></div>
+        <p class="empty" id="empty1" hidden>沒有可顯示的資料。</p>
+      </div>
+      <p class="foot" id="foot1"></p>
+    </section>
+
+    <section class="panel p4" id="card4">
+      <div class="panel-head">
+        <h2>高齡的性別落差</h2><span class="scope" id="scope4"></span>
+        <div class="toggle" role="group" aria-label="切換圖型" data-chart="c4">
+          <button type="button" data-view="scatter" aria-pressed="true">散佈</button>
+          <button type="button" data-view="bar" aria-pressed="false">長條</button>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart" id="chart4" role="img" aria-label="各里老化指數與老年性別比"></div>
+        <p class="empty" id="empty4" hidden>沒有符合條件的里,請調低最低人口數或重新選擇里。</p>
+      </div>
+      <p class="foot" id="foot4"></p>
+    </section>
+   </div>
+   <div class="col">
+    <section class="panel p2" id="card2">
+      <div class="panel-head">
+        <h2>各里指標排行</h2><span class="scope" id="scope2"></span>
+        <div class="toggle" role="group" aria-label="切換圖型" data-chart="c2">
+          <button type="button" data-view="bar" aria-pressed="true">排行</button>
+          <button type="button" data-view="scatter" aria-pressed="false">散佈</button>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart" id="chart2" role="img" aria-label="各里指標排行"></div>
+        <p class="empty" id="empty2" hidden>沒有符合條件的里,請調低最低人口數或重新選擇里。</p>
+      </div>
+      <p class="foot" id="foot2"></p>
+    </section>
+
+    <section class="panel p3" id="card3">
+      <div class="panel-head">
+        <h2>三階段人口組成</h2><span class="scope" id="scope3"></span>
+        <div class="toggle" role="group" aria-label="切換圖型" data-chart="c3">
+          <button type="button" data-view="pct" aria-pressed="true">占比</button>
+          <button type="button" data-view="count" aria-pressed="false">人數</button>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart" id="chart3" role="img" aria-label="各里 0-14 歲、15-64 歲、65 歲以上人口組成"></div>
+        <p class="empty" id="empty3" hidden>沒有符合條件的里,請調低最低人口數或重新選擇里。</p>
+      </div>
+      <p class="foot" id="foot3"></p>
+    </section>
+   </div>
+  </div>
+</main>
+
+<footer>
+  <dl>
+    <dt>資料來源</dt>
+    <dd>臺中市政府民政局人口管理統計平台,「臺中市豐原區人口統計 - 表03-各區人口結構」(分別下載性別「全部」「男」「女」三份)。</dd>
+    <dt>資料期間</dt>
+    <dd>115 年 9 月(單一月份,無法看趨勢)。</dd>
+    <dt>處理方式</dt>
+    <dd>原始檔為平台下載的 Excel 報表,經 ETL 轉成整齊的 CSV,並以男 + 女 = 全部、各里加總 = 全區合計做驗證。</dd>
+    <dt>限制說明</dt>
+    <dd>年齡為 5 歲一組,65 歲以上從 65-69 歲組起算;人口少於 1000 人的里,比例與性別比容易受少數人影響。</dd>
+    <dt>原始資料</dt>
+    <dd><a href="https://github.com/ichen0709/fengyuan-bi" target="_blank" rel="noopener">在 GitHub 查看專案並下載原始資料</a></dd>
+  </dl>
+</footer>
+
+<script src="data.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var notice = $('notice');
+  var D = window.FENGYUAN_DATA;
+
+  if (!D) {
+    notice.textContent = '找不到資料檔 data.js,請確認它和 index.html 放在同一個資料夾。';
+    notice.hidden = false;
+    return;
+  }
+  if (typeof echarts === 'undefined') {
+    notice.textContent = '圖表程式庫(ECharts)載入失敗,請確認網路連線後重新整理頁面。';
+    notice.hidden = false;
+    return;
+  }
+
+  /* ---------- 常數與資料整備 ---------- */
+  var C = {
+    male: '#2F7BA5', female: '#B04A78',
+    young: '#8DBF9A', work: '#C4CDD4', old: '#1E3A5F',
+    bar: '#34506B', ink: '#14232E', ink2: '#51616D', line: '#D6DDE2'
+  };
+  var FONT = getComputedStyle(document.body).fontFamily;
+  var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var V = D.villages;
+  var DT = D.district_total;
+  var AG = D.age_groups;
+  var BAND = D.age_bands;
+
+  var METRICS = {
+    aging_index: {
+      label: '老化指數', axis: '老化指數(每百名幼年人口)',
+      def: '老化指數 = 65 歲以上人數 ÷ 0-14 歲人數 × 100,數字越高代表老年人相對於幼年人越多。'
+    },
+    dependency_ratio: {
+      label: '扶養比', axis: '扶養比(每百名勞動年齡人口)',
+      def: '扶養比 = (0-14 歲 + 65 歲以上)人數 ÷ 15-64 歲人數 × 100,表示每 100 位 15-64 歲的人要扶養多少位。'
+    },
+    sex_ratio: {
+      label: '性別比', axis: '性別比(每百名女性)',
+      def: '性別比 = 男性人數 ÷ 女性人數 × 100,100 表示男女一樣多。'
+    }
+  };
+
+  var byName = {};
+  var maxTotal = 0;
+  V.forEach(function (v) {
+    byName[v.name] = v;
+    maxTotal = Math.max(maxTotal, v.total);
+    var b = v.bands.all;
+    v.young_share = v.total ? b.young / v.total * 100 : null;
+    v.working_share = v.total ? b.working / v.total * 100 : null;
+    v.old_share = v.total ? b.old / v.total * 100 : null;
+  });
+  DT.young_share = DT.bands.all.young / DT.total * 100;
+  DT.old_share = DT.bands.all.old / DT.total * 100;
+
+  /* ---------- 格式 ---------- */
+  function f0(v) { return v == null ? '—' : Math.round(v).toLocaleString('en-US'); }
+  function f1(v) {
+    return v == null ? '—' : v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  }
+  function sum(a) { return a.reduce(function (x, y) { return x + y; }, 0); }
+  function ratio(n, d) { return d ? Math.round(n / d * 1000) / 10 : null; }
+
+  /* ---------- 狀態 ---------- */
+  var state = {
+    sel: new Set(), minPop: 0, metric: 'aging_index', sort: 'desc',
+    view: { c1: 'pyramid', c2: 'bar', c3: 'pct', c4: 'scatter' }
+  };
+
+  function scope() {
+    var base = state.sel.size ? V.filter(function (v) { return state.sel.has(v.name); }) : V;
+    var list = base.filter(function (v) { return v.total >= state.minPop; });
+    return { base: base, list: list };
+  }
+
+  function sorted(list, keyFn) {
+    var arr = list.slice();
+    if (state.sort === 'name') {
+      arr.sort(function (a, b) { return a.name.localeCompare(b.name, 'zh-Hant'); });
+    } else {
+      var s = state.sort === 'asc' ? 1 : -1;
+      arr.sort(function (a, b) {
+        var x = keyFn(a), y = keyFn(b);
+        if (x == null && y == null) return 0;
+        if (x == null) return 1;
+        if (y == null) return -1;
+        return (x - y) * s;
+      });
+    }
+    return arr;
+  }
+
+  function aggregate(list) {
+    var m = AG.map(function () { return 0; }), f = m.slice();
+    list.forEach(function (v) {
+      for (var i = 0; i < AG.length; i++) { m[i] += v.counts['男'][i]; f[i] += v.counts['女'][i]; }
+    });
+    return { m: m, f: f };
+  }
+
+  function summarize(list) {
+    var t = { total: 0, male: 0, female: 0, young: 0, working: 0, old: 0 };
+    list.forEach(function (v) {
+      t.total += v.total; t.male += v.male; t.female += v.female;
+      t.young += v.bands.all.young; t.working += v.bands.all.working; t.old += v.bands.all.old;
+    });
+    t.aging = ratio(t.old, t.young);
+    t.dep = ratio(t.young + t.old, t.working);
+    t.sex = ratio(t.male, t.female);
+    return t;
+  }
+
+  /* ---------- 共用 ECharts 設定 ---------- */
+  function baseOption() {
+    return {
+      animation: !REDUCED,
+      animationDuration: 500,
+      animationDurationUpdate: 700,
+      animationEasingUpdate: 'cubicInOut',
+      textStyle: { fontFamily: FONT, color: C.ink },
+      tooltip: { confine: true, borderColor: C.line, textStyle: { color: C.ink, fontSize: 13 } }
+    };
+  }
+  function axisTitle(name, gap) {
+    return {
+      name: name, nameLocation: 'middle', nameGap: gap || 30,
+      nameTextStyle: { color: C.ink2, fontSize: 12.5 }
+    };
+  }
+  var AXIS_LABEL = { color: C.ink2, fontSize: 12, hideOverlap: true };
+  var SPLIT = { lineStyle: { color: C.line, type: 'dashed' } };
+  var LEGEND_STYLE = { top: 0, itemWidth: 14, itemHeight: 10, textStyle: { color: C.ink, fontSize: 13 } };
+
+  function bubble(total) { return 8 + 30 * Math.sqrt(total / maxTotal); }
+  function niceStep(x) {
+    if (x <= 0) return 1;
+    var p = Math.pow(10, Math.floor(Math.log(x) / Math.LN10));
+    var n = x / p;
+    return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p;
+  }
+  function roundUp(v, step) { return Math.ceil(v / step) * step; }
+  function roundDown(v, step) { return Math.floor(v / step) * step; }
+
+  /* ---------- 四張圖的設定 ---------- */
+  var builders = {};
+
+  /* 1. 人口金字塔 / 各年齡組性別比 */
+  builders.c1 = function () {
+    var s = scope();
+    var a = aggregate(s.base);
+    var tot = sum(a.m) + sum(a.f);
+    $('scope1').textContent = (state.sel.size ? '已選 ' + s.base.length + ' 個里' : '全區') + ',' + f0(tot) + ' 人';
+    $('foot1').textContent = state.view.c1 === 'pyramid'
+      ? '男性在左、女性在右,單位為人;已選的里加總,沒選里時為全區。此圖不受「最低人口數」影響。'
+      : '各年齡組性別比 = 男性人數 ÷ 女性人數 × 100,100 表示男女一樣多,低於 100 代表女性較多;人數為 0 的組顯示為斷點。';
+    var opt = baseOption();
+
+    if (state.view.c1 === 'pyramid') {
+      var peak = Math.max.apply(null, a.m.concat(a.f));
+      var step = niceStep(peak / 4);
+      var lim = roundUp(peak, step) || step;
+      opt.legend = Object.assign({ show: true, data: ['男', '女'], icon: 'roundRect' }, LEGEND_STYLE);
+      opt.grid = { left: 88, right: 22, top: 36, bottom: 56 };
+      opt.tooltip = Object.assign({}, opt.tooltip, {
+        trigger: 'axis', axisPointer: { type: 'shadow' },
+        formatter: function (ps) {
+          var i = ps[0].dataIndex;
+          return '<b>' + AG[i] + '</b><br>男 ' + f0(a.m[i]) + ' 人<br>女 ' + f0(a.f[i]) + ' 人<br>性別比 ' + f1(ratio(a.m[i], a.f[i]));
+        }
+      });
+      opt.xAxis = Object.assign({
+        id: 'x', type: 'value', min: -lim, max: lim, interval: step,
+        axisLabel: Object.assign({ formatter: function (v) { return f0(Math.abs(v)); } }, AXIS_LABEL),
+        splitLine: SPLIT
+      }, axisTitle('人數(人)', 34));
+      opt.yAxis = Object.assign({
+        id: 'y', type: 'category', data: AG, axisLine: { onZero: false, lineStyle: { color: C.line } },
+        axisTick: { show: false }, axisLabel: AXIS_LABEL
+      }, axisTitle('年齡組', 70), { nameRotate: 90 });
+      opt.series = [
+        {
+          id: 's-m', name: '男', type: 'bar', stack: 'pop', barWidth: '78%',
+          data: a.m.map(function (v, i) { return { id: AG[i], name: AG[i], value: -v }; }),
+          itemStyle: { color: C.male }, universalTransition: true
+        },
+        {
+          id: 's-f', name: '女', type: 'bar', stack: 'pop', barWidth: '78%',
+          data: a.f.map(function (v, i) { return { id: AG[i], name: AG[i], value: v }; }),
+          itemStyle: { color: C.female }, universalTransition: true
+        }
+      ];
+    } else {
+      var ratios = a.m.map(function (m, i) { return ratio(m, a.f[i]); });
+      var hi = Math.max(120, roundUp(Math.max.apply(null, ratios.filter(function (r) { return r != null; }).concat([0])), 10));
+      opt.legend = { show: false };
+      opt.grid = { left: 74, right: 22, top: 36, bottom: 70 };
+      opt.tooltip = Object.assign({}, opt.tooltip, {
+        trigger: 'axis', axisPointer: { type: 'line' },
+        formatter: function (ps) {
+          var i = ps[0].dataIndex;
+          return '<b>' + AG[i] + '</b><br>性別比 ' + f1(ratios[i]) + '<br>男 ' + f0(a.m[i]) + ' 人,女 ' + f0(a.f[i]) + ' 人';
+        }
+      });
+      opt.xAxis = Object.assign({
+        id: 'x', type: 'category', data: AG, axisTick: { show: false },
+        axisLabel: Object.assign({ rotate: 50, interval: 0 }, AXIS_LABEL), axisLine: { lineStyle: { color: C.line } }
+      }, axisTitle('年齡組', 54));
+      opt.yAxis = Object.assign({
+        id: 'y', type: 'value', min: 0, max: hi, axisLabel: AXIS_LABEL, splitLine: SPLIT
+      }, axisTitle('性別比(每百名女性)', 42), { nameRotate: 90 });
+      opt.series = [{
+        id: 's-m', name: '性別比', type: 'line', symbolSize: 7, connectNulls: false,
+        data: ratios.map(function (r, i) { return { id: AG[i], name: AG[i], value: r }; }),
+        lineStyle: { width: 2.5, color: C.old }, itemStyle: { color: C.old },
+        markLine: {
+          silent: true, symbol: 'none',
+          lineStyle: { color: C.ink2, type: 'dashed' },
+          label: { formatter: '男女一樣多(100)', color: C.ink2, position: 'insideEndTop' },
+          data: [{ yAxis: 100 }]
+        },
+        universalTransition: true
+      }];
+      opt.series[0].data.forEach(function (d) { if (d.value == null) d.value = '-'; });
+    }
+    return { option: opt, empty: false, replace: ['xAxis', 'yAxis', 'series', 'legend', 'tooltip'] };
+  };
+
+  /* 2. 各里指標排行 / 年輕與高齡占比散佈 */
+  builders.c2 = function () {
+    var s = scope();
+    var m = state.metric, M = METRICS[m];
+    var opt = baseOption();
+    var items, height;
+    $('scope2').textContent = s.list.length + ' 個里';
+
+    if (state.view.c2 === 'bar') {
+      items = sorted(s.list.filter(function (v) { return v[m] != null; }), function (v) { return v[m]; });
+      height = Math.max(380, items.length * 21 + 96);
+      $('foot2').textContent = M.def + '虛線為全區值。';
+      var districtVal = DT[m];
+      opt.grid = { left: 76, right: 48, top: 30, bottom: 50 };
+      opt.tooltip = Object.assign({}, opt.tooltip, {
+        trigger: 'item',
+        formatter: function (p) {
+          var v = byName[p.name];
+          return '<b>' + v.name + '</b><br>' + M.label + ' ' + f1(v[m]) + '<br>總人口 ' + f0(v.total) + ' 人';
+        }
+      });
+      opt.xAxis = Object.assign({
+        id: 'x', type: 'value', min: 0, axisLabel: AXIS_LABEL, splitLine: SPLIT
+      }, axisTitle(M.axis, 30));
+      opt.yAxis = Object.assign({
+        id: 'y', type: 'category', inverse: true, min: null, max: null, data: items.map(function (v) { return v.name; }),
+        axisTick: { show: false }, axisLabel: { color: C.ink, fontSize: 12 },
+        axisLine: { lineStyle: { color: C.line } }
+      }, axisTitle('里', 58), { nameRotate: 90 });
+      opt.series = [{
+        id: 's-main', name: M.label, type: 'bar', barMaxWidth: 15,
+        data: items.map(function (v) {
+          var color = m === 'sex_ratio' ? (v[m] >= 100 ? C.male : C.female) : C.bar;
+          return { id: v.name, name: v.name, value: v[m], itemStyle: { color: color } };
+        }),
+        label: { show: true, position: 'right', fontSize: 11, color: C.ink2, formatter: function (p) { return f1(p.value); } },
+        markLine: {
+          silent: true, symbol: 'none', animation: false,
+          lineStyle: { color: C.ink, type: 'dashed', width: 1.5 },
+          label: { formatter: '全區 ' + f1(districtVal), color: C.ink, position: 'start', fontSize: 12 },
+          data: [{ xAxis: districtVal }]
+        },
+        universalTransition: true
+      }];
+    } else {
+      items = s.list.filter(function (v) { return v.young_share != null; });
+      height = 460;
+      $('foot2').textContent = '橫軸為 0-14 歲占總人口的比例,縱軸為 65 歲以上占總人口的比例,泡泡越大表示總人口越多;虛線為全區值。';
+      opt.grid = { left: 64, right: 30, top: 30, bottom: 54 };
+      opt.tooltip = Object.assign({}, opt.tooltip, {
+        trigger: 'item',
+        formatter: function (p) {
+          var v = byName[p.name];
+          return '<b>' + v.name + '</b><br>0-14 歲占比 ' + f1(v.young_share) + '%<br>65 歲以上占比 ' + f1(v.old_share) + '%<br>總人口 ' + f0(v.total) + ' 人';
+        }
+      });
+      opt.xAxis = Object.assign({
+        id: 'x', type: 'value', scale: true, min: null, max: null,
+        axisLabel: Object.assign({ formatter: '{value}%' }, AXIS_LABEL), splitLine: SPLIT
+      }, axisTitle('0-14 歲占比(%)', 32));
+      opt.yAxis = Object.assign({
+        id: 'y', type: 'value', scale: true, min: null, max: null, inverse: false,
+        axisLine: { show: true, lineStyle: { color: C.line } },
+        axisLabel: Object.assign({ formatter: '{value}%' }, AXIS_LABEL), splitLine: SPLIT
+      }, axisTitle('65 歲以上占比(%)', 44), { nameRotate: 90 });
+      opt.series = [{
+        id: 's-main', name: '里', type: 'scatter',
+        data: items.map(function (v) {
+          return { id: v.name, name: v.name, value: [v.young_share, v.old_share, v.total] };
+        }),
+        symbolSize: function (d) { return bubble(d[2]); },
+        itemStyle: { color: C.bar, opacity: .72, borderColor: '#fff', borderWidth: 1 },
+        emphasis: { itemStyle: { opacity: 1 } },
+        markLine: {
+          silent: true, symbol: 'none', animation: false,
+          lineStyle: { color: C.ink2, type: 'dashed' },
+          label: { color: C.ink2, fontSize: 12 },
+          data: [
+            { xAxis: DT.young_share, label: { formatter: '全區 ' + f1(DT.young_share) + '%', position: 'end' } },
+            { yAxis: DT.old_share, label: { formatter: '全區 ' + f1(DT.old_share) + '%', position: 'end' } }
+          ]
+        },
+        universalTransition: true
+      }];
+    }
+    return {
+      option: opt, empty: items.length === 0, height: height,
+      replace: ['xAxis', 'yAxis', 'series', 'grid', 'tooltip']
+    };
+  };
+
+  /* 3. 三階段人口組成 */
+  builders.c3 = function () {
+    var s = scope();
+    var m = state.metric, M = METRICS[m];
+    var items = sorted(s.list.filter(function (v) { return v[m] != null; }), function (v) { return v[m]; });
+    var pct = state.view.c3 === 'pct';
+    $('scope3').textContent = s.list.length + ' 個里,依' + (state.sort === 'name' ? '里名' : M.label) + '排序';
+    $('foot3').textContent = '0-14 歲為前 3 個年齡組,15-64 歲為中間 10 組,65 歲以上為 65-69 歲到 100 歲以上;'
+      + (pct ? '每根長條為 100%,顯示各階段占該里總人口的比例。' : '每根長條的高度為該里總人口,單位為人。');
+    var opt = baseOption();
+    var bands = [
+      { key: 'young', name: BAND.young, color: C.young },
+      { key: 'working', name: BAND.working, color: C.work },
+      { key: 'old', name: BAND.old, color: C.old }
+    ];
+    opt.legend = Object.assign({ show: true, data: bands.map(function (b) { return b.name; }), icon: 'roundRect' }, LEGEND_STYLE);
+    opt.grid = { left: 66, right: 22, top: 38, bottom: 86 };
+    opt.tooltip = Object.assign({}, opt.tooltip, {
+      trigger: 'axis', axisPointer: { type: 'shadow' },
+      formatter: function (ps) {
+        var v = byName[ps[0].name];
+        if (!v) return '';
+        var html = '<b>' + v.name + '</b>(' + f0(v.total) + ' 人)';
+        bands.forEach(function (b) {
+          var n = v.bands.all[b.key];
+          html += '<br>' + b.name + ' ' + f0(n) + ' 人,' + f1(v.total ? n / v.total * 100 : null) + '%';
+        });
+        return html;
+      }
+    });
+    opt.xAxis = Object.assign({
+      id: 'x', type: 'category', data: items.map(function (v) { return v.name; }), axisTick: { show: false },
+      axisLabel: Object.assign({ rotate: 55, interval: 0 }, AXIS_LABEL), axisLine: { lineStyle: { color: C.line } }
+    }, axisTitle('里', 66));
+    opt.yAxis = Object.assign({
+      id: 'y', type: 'value', min: 0, max: pct ? 100 : null, axisLabel: Object.assign({ formatter: pct ? '{value}%' : function (v) { return f0(v); } }, AXIS_LABEL),
+      splitLine: SPLIT
+    }, axisTitle(pct ? '占該里總人口(%)' : '人數(人)', 46), { nameRotate: 90 });
+    opt.series = bands.map(function (b) {
+      return {
+        id: 's-' + b.key, name: b.name, type: 'bar', stack: 'age', barMaxWidth: 26,
+        data: items.map(function (v) {
+          var n = v.bands.all[b.key];
+          return { id: v.name, name: v.name, value: pct ? (v.total ? n / v.total * 100 : 0) : n };
+        }),
+        itemStyle: { color: b.color }, universalTransition: true
+      };
+    });
+    return { option: opt, empty: items.length === 0, replace: ['xAxis', 'yAxis', 'series', 'legend'] };
+  };
+
+  /* 4. 高齡的性別落差 */
+  builders.c4 = function () {
+    var s = scope();
+    var items = s.list.filter(function (v) { return v.old_sex_ratio != null && v.aging_index != null; });
+    var scatter = state.view.c4 === 'scatter';
+    var height = 600;
+    $('scope4').textContent = items.length + ' 個里';
+    $('foot4').textContent = '老年性別比 = 65 歲以上男性 ÷ 65 歲以上女性 × 100,低於 100 表示高齡女性比男性多。'
+      + (scatter ? '泡泡越大表示 65 歲以上人口越多;虛線為男女一樣多(100)。' : '長條依「排序」設定排列,藍色表示男性較多、玫瑰色表示女性較多;虛線為男女一樣多(100)。');
+    var opt = baseOption();
+    var ys = items.map(function (v) { return v.old_sex_ratio; });
+    var yMax = Math.max(110, roundUp(Math.max.apply(null, ys.concat([0])), 10));
+    var baseLine = {
+      silent: true, symbol: 'none', animation: false,
+      lineStyle: { color: C.ink, type: 'dashed', width: 1.5 },
+      label: { formatter: '男女一樣多(100)', color: C.ink, position: 'insideStartTop', fontSize: 12 },
+      data: [{ yAxis: 100 }]
+    };
+    opt.legend = { show: false };
+    opt.tooltip = Object.assign({}, opt.tooltip, {
+      trigger: 'item',
+      formatter: function (p) {
+        var v = byName[p.name];
+        return '<b>' + v.name + '</b><br>老化指數 ' + f1(v.aging_index) + '<br>老年性別比 ' + f1(v.old_sex_ratio)
+          + '<br>65 歲以上 ' + f0(v.bands.all.old) + ' 人(男 ' + f0(v.bands.male.old) + ',女 ' + f0(v.bands.female.old) + ')';
+      }
+    });
+
+    if (scatter) {
+      opt.grid = { left: 66, right: 30, top: 30, bottom: 54 };
+      opt.xAxis = Object.assign({
+        id: 'x', type: 'value', scale: true, min: null, max: null,
+        axisLabel: AXIS_LABEL, splitLine: SPLIT
+      }, axisTitle('老化指數(每百名幼年人口)', 32));
+      opt.yAxis = Object.assign({
+        id: 'y', type: 'value', scale: true, inverse: false,
+        min: Math.max(0, roundDown(Math.min.apply(null, ys.concat([100])) - 10, 10)), max: yMax,
+        axisLine: { show: true, lineStyle: { color: C.line } }, axisLabel: AXIS_LABEL, splitLine: SPLIT
+      }, axisTitle('老年性別比(每百名老年女性)', 46), { nameRotate: 90 });
+      opt.series = [{
+        id: 's-main', name: '里', type: 'scatter',
+        data: items.map(function (v) {
+          return { id: v.name, name: v.name, value: [v.aging_index, v.old_sex_ratio, v.bands.all.old] };
+        }),
+        symbolSize: function (d) { return 8 + 30 * Math.sqrt(d[2] / maxOld); },
+        itemStyle: { color: C.old, opacity: .7, borderColor: '#fff', borderWidth: 1 },
+        emphasis: { itemStyle: { opacity: 1 } },
+        markLine: baseLine,
+        universalTransition: true
+      }];
+    } else {
+      var sortedItems = sorted(items, function (v) { return v.old_sex_ratio; });
+      height = Math.max(420, sortedItems.length * 19 + 96);
+      opt.grid = { left: 76, right: 44, top: 30, bottom: 50 };
+      opt.xAxis = Object.assign({
+        id: 'x', type: 'value', scale: false, min: 0, max: yMax, axisLabel: AXIS_LABEL, splitLine: SPLIT
+      }, axisTitle('老年性別比(每百名老年女性)', 30));
+      opt.yAxis = Object.assign({
+        id: 'y', type: 'category', inverse: true, min: null, max: null,
+        data: sortedItems.map(function (v) { return v.name; }),
+        axisTick: { show: false }, axisLabel: { color: C.ink, fontSize: 12 },
+        axisLine: { show: true, lineStyle: { color: C.line } }
+      }, axisTitle('里', 58), { nameRotate: 90 });
+      opt.series = [{
+        id: 's-main', name: '老年性別比', type: 'bar', barMaxWidth: 14,
+        data: sortedItems.map(function (v) {
+          return {
+            id: v.name, name: v.name, value: v.old_sex_ratio,
+            itemStyle: { color: v.old_sex_ratio >= 100 ? C.male : C.female }
+          };
+        }),
+        label: { show: true, position: 'right', fontSize: 11, color: C.ink2, formatter: function (p) { return f1(p.value); } },
+        markLine: {
+          silent: true, symbol: 'none', animation: false,
+          lineStyle: { color: C.ink, type: 'dashed', width: 1.5 },
+          label: { formatter: '男女一樣多(100)', color: C.ink, position: 'start', fontSize: 12 },
+          data: [{ xAxis: 100 }]
+        },
+        universalTransition: true
+      }];
+    }
+    return { option: opt, empty: items.length === 0, height: height, replace: ['xAxis', 'yAxis', 'series', 'grid', 'tooltip'] };
+  };
+
+  var maxOld = 0;
+  V.forEach(function (v) { maxOld = Math.max(maxOld, v.bands.all.old); });
+
+  /* ---------- 繪製與更新 ---------- */
+  var charts = {};
+  var ids = { c1: 'chart1', c2: 'chart2', c3: 'chart3', c4: 'chart4' };
+  var emptyIds = { c1: 'empty1', c2: 'empty2', c3: 'empty3', c4: 'empty4' };
+  var rendered = {};   // 記錄每張圖上次畫的是哪種圖型
+
+  function render(key, viewChanged) {
+    var el = $(ids[key]), emptyEl = $(emptyIds[key]);
+    var r = builders[key]();
+    if (r.empty) {
+      el.hidden = true;
+      emptyEl.hidden = false;
+      if (charts[key]) { charts[key].clear(); rendered[key] = null; }
+      return;
+    }
+    var wasHidden = el.hidden;
+    el.hidden = false;
+    emptyEl.hidden = true;
+    if (r.height) el.style.height = r.height + 'px';
+    if (!charts[key]) {
+      charts[key] = echarts.init(el);
+    } else {
+      charts[key].resize();
+    }
+    var swap = viewChanged || wasHidden || rendered[key] == null;
+    if (rendered[key] == null) {
+      charts[key].setOption(r.option);
+    } else if (swap) {
+      charts[key].setOption(r.option, { replaceMerge: r.replace });
+    } else {
+      charts[key].setOption(r.option);
+    }
+    rendered[key] = state.view[key];
+  }
+
+  function renderSummary() {
+    var s = summarize(scope().list);
+    var el = $('summary');
+    if (!s.total) {
+      el.textContent = '沒有符合條件的里,請調低最低人口數或重新選擇里。';
+      $('split').firstElementChild.style.width = '0%';
+      $('split').lastElementChild.style.width = '0%';
+      $('cap-m').textContent = '';
+      $('cap-w').textContent = '';
+      return;
+    }
+    var n = scope().list.length;
+    el.innerHTML = '目前看 <strong>' + n + ' 個里</strong>,共 <strong>' + f0(s.total) + '</strong> 人。'
+      + '老化指數 <strong>' + f1(s.aging) + '</strong>,扶養比 <strong>' + f1(s.dep) + '</strong>,'
+      + '每 100 位女性對 <strong>' + f1(s.sex) + '</strong> 位男性。';
+    var mp = s.male / s.total * 100;
+    $('split').firstElementChild.style.width = mp + '%';
+    $('split').lastElementChild.style.width = (100 - mp) + '%';
+    $('cap-m').textContent = '男 ' + f0(s.male) + '(' + f1(mp) + '%)';
+    $('cap-w').textContent = '女 ' + f0(s.female) + '(' + f1(100 - mp) + '%)';
+  }
+
+  function renderAll() {
+    renderSummary();
+    ['c1', 'c2', 'c3', 'c4'].forEach(function (k) { render(k, false); });
+  }
+
+  /* ---------- 篩選列 ---------- */
+  var vlist = $('vlist');
+  V.slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'zh-Hant'); }).forEach(function (v) {
+    var lab = document.createElement('label');
+    var cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.value = v.name;
+    lab.appendChild(cb);
+    lab.appendChild(document.createTextNode(v.name));
+    vlist.appendChild(lab);
+  });
+  function syncVillageSummary() {
+    $('vsum').textContent = state.sel.size ? '已選 ' + state.sel.size + ' 個里' : '全部里(' + V.length + ')';
+  }
+  function syncChecks() {
+    Array.prototype.forEach.call(vlist.querySelectorAll('input'), function (cb) { cb.checked = state.sel.has(cb.value); });
+  }
+  vlist.addEventListener('change', function (e) {
+    if (e.target.checked) state.sel.add(e.target.value); else state.sel.delete(e.target.value);
+    syncVillageSummary();
+    renderAll();
+  });
+  $('v-all').addEventListener('click', function () {
+    V.forEach(function (v) { state.sel.add(v.name); });
+    syncChecks(); syncVillageSummary(); renderAll();
+  });
+  $('v-none').addEventListener('click', function () {
+    state.sel.clear();
+    syncChecks(); syncVillageSummary(); renderAll();
+  });
+  document.addEventListener('click', function (e) {
+    var d = $('vsel');
+    if (d.open && !d.contains(e.target)) d.open = false;
+  });
+  document.addEventListener('keydown', function (e) {
+    var d = $('vsel');
+    if (e.key === 'Escape' && d.open) { d.open = false; $('vsum').focus(); }
+  });
+
+  var slider = $('minpop');
+  slider.max = String(Math.ceil(maxTotal / 100) * 100);
+  slider.addEventListener('input', function () {
+    state.minPop = Number(slider.value);
+    $('minpop-out').textContent = f0(state.minPop);
+    renderAll();
+  });
+  $('metric').addEventListener('change', function (e) { state.metric = e.target.value; renderAll(); });
+  $('sort').addEventListener('change', function (e) { state.sort = e.target.value; renderAll(); });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.toggle'), function (box) {
+    box.addEventListener('click', function (e) {
+      var btn = e.target.closest('button');
+      if (!btn) return;
+      var key = box.getAttribute('data-chart');
+      if (state.view[key] === btn.getAttribute('data-view')) return;
+      state.view[key] = btn.getAttribute('data-view');
+      Array.prototype.forEach.call(box.querySelectorAll('button'), function (b) {
+        b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+      });
+      render(key, true);
+    });
+  });
+
+  var resizeTimer;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      Object.keys(charts).forEach(function (k) { charts[k].resize(); });
+    }, 120);
+  });
+
+  syncVillageSummary();
+  renderAll();
+})();
+</script>
+</body>
+</html>
